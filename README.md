@@ -1,23 +1,26 @@
-﻿# [USB2WEB](https://github.com/OS-Q/USB2WEB) 
-
-USB2WEB通信桥
+﻿# [WEB-USB](https://github.com/OS-Q/WEB-USB)
 
 [![sites](OS-Q/OS-Q.png)](http://www.OS-Q.com)
 
-#### 更多关于：[OS-Q](https://github.com/OS-Q/OS-Q) 可访问 www.OS-Q.com
+#### 归属系统交互：[UI-Q](https://github.com/OS-Q/UI-Q)
 
+#### 关于系统架构：[OS-Q](https://github.com/OS-Q/OS-Q)
 
-## 简介
+## [平台描述](https://github.com/OS-Q/WEB-USB/wiki) 
 
-用于连接网页和USB设备
+WEB-USB工程用于打通WEB端和设备端的直接通信，实现无网络设备的通信连接，也便于实现更强大的交互控制
+
+## [资源](OS-Q/)
+
+#### [go通信桥](go/)
+
+go桥的源码初始化来源 https://github.com/trezor/trezord-go
+
+用于UI界面和设备直连通信
 
 ---
 
-## 组成
+####  © qitas@qitas.cn
+###  [OS-Q redefined Operation System](http://www.OS-Q.com)
+####  @ 2019-3-12
 
-#### go桥
-
-
----
-
-##  www.OS-Q.com   |   qitas@qitas.cn
