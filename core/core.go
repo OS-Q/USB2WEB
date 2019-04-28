@@ -13,8 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/trezor/trezord-go/memorywriter"
-	"github.com/trezor/trezord-go/wire"
+	"github.com/OS-Q/WEBUSB/memorywriter"
+	"github.com/OS-Q/WEBUSB/wire"
 )
 
 // Package with "core logic" of device listing
