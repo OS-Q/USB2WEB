@@ -9,10 +9,10 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"github.com/OS-Q/WEB-USB/go/core"
-	"github.com/OS-Q/WEB-USB/go/memorywriter"
-	"github.com/OS-Q/WEB-USB/go/server"
-	"github.com/OS-Q/WEB-USB/go/usb"
+	"github.com/OS-Q/WEB-USB/core"
+	"github.com/OS-Q/WEB-USB/memorywriter"
+	"github.com/OS-Q/WEB-USB/server"
+	"github.com/OS-Q/WEB-USB/usb"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
