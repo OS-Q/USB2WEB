@@ -49,51 +49,55 @@ func ServeStatus(r *mux.Router, c *core.Core, v string, mw, dmw *memorywriter.Me
 	}))
 }
 
-func (s *status) Log(st string) {
-	s.longMemoryWriter.Println("status - " + st)
-}
-
 func (s *status) statusGzip(w http.ResponseWriter, r *http.Request) {
-	s.Log("building gzip")
+	s.longMemoryWriter.Log("building gzip")
 
 	devconLog, err := devconInfo(s.longMemoryWriter)
 	if err != nil {
-		s.Log("devcon err " + err.Error())
+		s.longMemoryWriter.Log("devcon err " + err.Error())
 		respondError(w, err)
 		return
 	}
 
 	devconLogD, err := devconAllStatusInfo()
 	if err != nil {
-		s.Log("devcon err " + err.Error())
+		s.longMemoryWriter.Log("devcon err " + err.Error())
 		respondError(w, err)
 		return
 	}
 
 	msinfo, err := runMsinfo()
 	if err != nil {
-		s.Log("msinfo err " + err.Error())
+		s.longMemoryWriter.Log("msinfo err " + err.Error())
 		respondError(w, err)
 		return
 	}
 
-	s.Log("getting libwdi")
+	s.longMemoryWriter.Log("getting libwdi")
 	libwdi, err := libwdiReinstallLog()
 	if err != nil {
-		s.Log("lbwdi err " + err.Error())
+		s.longMemoryWriter.Log("lbwdi err " + err.Error())
 		respondError(w, err)
 		return
 	}
 
-	s.Log("getting setupapi")
+	s.longMemoryWriter.Log("getting old log")
+	old, err := oldLog()
+	if err != nil {
+		s.longMemoryWriter.Log("old log err " + err.Error())
+		respondError(w, err)
+		return
+	}
+
+	s.longMemoryWriter.Log("getting setupapi")
 	setupapi, err := setupAPIDevLog()
 	if err != nil {
-		s.Log("setupapi err " + err.Error())
+		s.longMemoryWriter.Log("setupapi err " + err.Error())
 		respondError(w, err)
 		return
 	}
 
-	start := s.version + "\n" + msinfo + "\n" + devconLog + devconLogD + "\n" + libwdi + setupapi
+	start := s.version + "\n" + msinfo + "\n" + devconLog + devconLogD + "\n" + old + libwdi + setupapi + "\nCurrent log:\n"
 
 	gzip, err := s.longMemoryWriter.Gzip(start)
 	if err != nil {
@@ -111,18 +115,18 @@ func (s *status) statusGzip(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *status) statusPage(w http.ResponseWriter, r *http.Request) {
-	s.Log("building status page")
+	s.longMemoryWriter.Log("building status page")
 
 	var templateErr error
 	tdevs, err := s.statusEnumerate()
 	if err != nil {
-		s.Log("enumerate err" + err.Error())
+		s.longMemoryWriter.Log("enumerate err" + err.Error())
 		templateErr = err
 	}
 
 	devconLog, err := devconInfo(s.longMemoryWriter)
 	if err != nil {
-		s.Log("devcon err " + err.Error())
+		s.longMemoryWriter.Log("devcon err " + err.Error())
 		respondError(w, err)
 		return
 	}
@@ -135,7 +139,7 @@ func (s *status) statusPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.Log("actually building status data")
+	s.longMemoryWriter.Log("actually building status data")
 
 	isErr := templateErr != nil
 	strErr := ""
@@ -168,7 +172,7 @@ func respondError(w http.ResponseWriter, err error) {
 func (s *status) statusEnumerate() ([]statusTemplateDevice, error) {
 	e, err := s.core.Enumerate()
 	if err != nil {
-		s.Log("enumerate err" + err.Error())
+		s.longMemoryWriter.Log("enumerate err" + err.Error())
 		return nil, err
 	}
 

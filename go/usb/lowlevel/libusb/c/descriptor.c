@@ -543,19 +543,22 @@ int usbi_device_cache_descriptor(libusb_device *dev)
 int API_EXPORTED libusb_get_device_descriptor(libusb_device *dev,
 	struct libusb_device_descriptor *desc)
 {
-	usbi_dbg("");
+	usbi_dbg("before memcpy");
 	memcpy((unsigned char *) desc, (unsigned char *) &dev->device_descriptor,
 	       sizeof (dev->device_descriptor));
+	usbi_dbg("after memcpy");
 
 	#ifdef OS_WINDOWS
 	// hack for filtering out non-winusb devices in trezord
 	// (note that in trezord layer, throwing error here does NOT throw error up the chain,
 	//  it just ignores the device)
+	usbi_dbg("windows -> ask driver");
 	if (!dev->has_winusb_driver) {
 		usbi_dbg("winUSB not detected, return error");
 		return LIBUSB_ERROR_OTHER;
 	}
 	#endif
+	usbi_dbg("return");
 	return 0;
 }
 
@@ -582,27 +585,38 @@ int API_EXPORTED libusb_get_active_config_descriptor(libusb_device *dev,
 	int host_endian = 0;
 	int r;
 
+	usbi_dbg("start, call backend first");
 	r = usbi_backend->get_active_config_descriptor(dev, tmp,
 		LIBUSB_DT_CONFIG_SIZE, &host_endian);
-	if (r < 0)
+	usbi_dbg("done");
+	if (r < 0) {
+		usbi_err(dev->ctx, "error %d", r);
 		return r;
+	}
 	if (r < LIBUSB_DT_CONFIG_SIZE) {
 		usbi_err(dev->ctx, "short config descriptor read %d/%d",
 			 r, LIBUSB_DT_CONFIG_SIZE);
 		return LIBUSB_ERROR_IO;
 	}
 
+	usbi_dbg("parse");
 	usbi_parse_descriptor(tmp, "bbw", &_config, host_endian);
+	usbi_dbg("malloc");
 	buf = malloc(_config.wTotalLength);
 	if (!buf)
 		return LIBUSB_ERROR_NO_MEM;
 
+	usbi_dbg("call backend 2");
 	r = usbi_backend->get_active_config_descriptor(dev, buf,
 		_config.wTotalLength, &host_endian);
-	if (r >= 0)
+	if (r >= 0) {
+		usbi_dbg("raw_desc_to_config");
 		r = raw_desc_to_config(dev->ctx, buf, r, host_endian, config);
+	}
 
+	usbi_dbg("free");
 	free(buf);
+	usbi_dbg("return");
 	return r;
 }
 

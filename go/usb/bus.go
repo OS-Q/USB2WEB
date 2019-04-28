@@ -2,13 +2,8 @@ package usb
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/trezor/trezord-go/core"
-)
-
-var (
-	ErrNotFound = fmt.Errorf("device not found")
 )
 
 type USB struct {
@@ -43,14 +38,22 @@ func (b *USB) Enumerate() ([]core.USBInfo, error) {
 	return infos, nil
 }
 
-func (b *USB) Connect(path string) (core.USBDevice, error) {
+func (b *USB) Connect(path string, debug bool, reset bool) (core.USBDevice, error) {
 	for _, b := range b.buses {
 		if b.Has(path) {
-			return b.Connect(path)
+			return b.Connect(path, debug, reset)
 		}
 	}
 	return nil, ErrNotFound
 }
 
+func (b *USB) Close() {
+	for _, b := range b.buses {
+		b.Close()
+	}
+}
+
+var ErrNotFound = errors.New("device not found")
 var errDisconnect = errors.New("device disconnected during action")
 var errClosedDevice = errors.New("closed device")
+var errNotDebug = errors.New("not debug link")

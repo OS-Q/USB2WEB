@@ -40,7 +40,12 @@ func ServeAPI(r *mux.Router, c *core.Core, v string, l *memorywriter.MemoryWrite
 	r.HandleFunc("/call/{session}", api.Call)
 	r.HandleFunc("/post/{session}", api.Post)
 	r.HandleFunc("/read/{session}", api.Read)
-
+	r.HandleFunc("/debug/acquire/{path}", api.AcquireDebug)
+	r.HandleFunc("/debug/acquire/{path}/{session}", api.AcquireDebug)
+	r.HandleFunc("/debug/release/{session}", api.ReleaseDebug)
+	r.HandleFunc("/debug/call/{session}", api.CallDebug)
+	r.HandleFunc("/debug/post/{session}", api.PostDebug)
+	r.HandleFunc("/debug/read/{session}", api.ReadDebug)
 	corsv, err := corsValidator()
 	if err != nil {
 		return err
@@ -49,12 +54,8 @@ func ServeAPI(r *mux.Router, c *core.Core, v string, l *memorywriter.MemoryWrite
 	return nil
 }
 
-func (a *api) log(s string) {
-	a.logger.Println("api - " + s)
-}
-
 func (a *api) Info(w http.ResponseWriter, r *http.Request) {
-	a.log("version " + a.version)
+	a.logger.Log("version " + a.version)
 
 	type info struct {
 		Version string `json:"version"`
@@ -66,24 +67,17 @@ func (a *api) Info(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) Listen(w http.ResponseWriter, r *http.Request) {
-	a.log("listen starting")
-	cn, ok := w.(http.CloseNotifier)
-	if !ok {
-		http.Error(w, "cannot stream", http.StatusInternalServerError)
-		return
-	}
-	cnn := cn.CloseNotify()
-
+	a.logger.Log("starting")
 	var entries []core.EnumerateEntry
 
-	a.log("listen decoding entries")
+	a.logger.Log("decoding entries")
 
 	err := json.NewDecoder(r.Body).Decode(&entries)
 	defer func() {
 		errClose := r.Body.Close()
 		if errClose != nil {
 			// just log
-			a.log("Error on request close: " + errClose.Error())
+			a.logger.Log("Error on request close: " + errClose.Error())
 		}
 	}()
 
@@ -92,7 +86,7 @@ func (a *api) Listen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := a.core.Listen(entries, cnn)
+	res, err := a.core.Listen(entries, r.Context())
 	if err != nil {
 		a.respondError(w, err)
 		return
@@ -103,25 +97,33 @@ func (a *api) Listen(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) Enumerate(w http.ResponseWriter, r *http.Request) {
-	a.log("Enumerate start")
+	a.logger.Log("start")
 	e, err := a.core.Enumerate()
 	if err != nil {
 		a.respondError(w, err)
 		return
 	}
-	a.log("Enumerate encoding and exiting")
+	a.logger.Log("encoding and exiting")
 	err = json.NewEncoder(w).Encode(e)
 	a.checkJSONError(w, err)
 }
 
 func (a *api) Acquire(w http.ResponseWriter, r *http.Request) {
+	a.acquire(w, r, false)
+}
+
+func (a *api) AcquireDebug(w http.ResponseWriter, r *http.Request) {
+	a.acquire(w, r, true)
+}
+
+func (a *api) acquire(w http.ResponseWriter, r *http.Request, debug bool) {
 	vars := mux.Vars(r)
 	path := vars["path"]
 	prev := vars["session"]
 	if prev == "null" {
 		prev = ""
 	}
-	res, err := a.core.Acquire(path, prev)
+	res, err := a.core.Acquire(path, prev, debug)
 
 	if err != nil {
 		a.respondError(w, err)
@@ -139,43 +141,57 @@ func (a *api) Acquire(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) Release(w http.ResponseWriter, r *http.Request) {
-	a.log("release - locking sessionsMutex")
+	a.release(w, r, false)
+}
+
+func (a *api) ReleaseDebug(w http.ResponseWriter, r *http.Request) {
+	a.release(w, r, true)
+}
+
+func (a *api) release(w http.ResponseWriter, r *http.Request, debug bool) {
+	a.logger.Log("start")
 
 	vars := mux.Vars(r)
 	session := vars["session"]
 
-	err := a.core.Release(session)
+	err := a.core.Release(session, debug)
 
 	if err != nil {
 		a.respondError(w, err)
 		return
 	}
 
-	a.log("release - done, encoding")
+	a.logger.Log("done, encoding")
 	err = json.NewEncoder(w).Encode(vars)
 	a.checkJSONError(w, err)
 }
 
 func (a *api) Call(w http.ResponseWriter, r *http.Request) {
-	a.call(w, r, core.CallModeReadWrite)
+	a.call(w, r, core.CallModeReadWrite, false)
 }
 
 func (a *api) Post(w http.ResponseWriter, r *http.Request) {
-	a.call(w, r, core.CallModeWrite)
+	a.call(w, r, core.CallModeWrite, false)
 }
 
 func (a *api) Read(w http.ResponseWriter, r *http.Request) {
-	a.call(w, r, core.CallModeRead)
+	a.call(w, r, core.CallModeRead, false)
 }
 
-func (a *api) call(w http.ResponseWriter, r *http.Request, mode core.CallMode) {
-	a.log("call - start")
-	cn, ok := w.(http.CloseNotifier)
-	if !ok {
-		http.Error(w, "cannot stream", http.StatusInternalServerError)
-		return
-	}
-	cnn := cn.CloseNotify()
+func (a *api) CallDebug(w http.ResponseWriter, r *http.Request) {
+	a.call(w, r, core.CallModeReadWrite, true)
+}
+
+func (a *api) PostDebug(w http.ResponseWriter, r *http.Request) {
+	a.call(w, r, core.CallModeWrite, true)
+}
+
+func (a *api) ReadDebug(w http.ResponseWriter, r *http.Request) {
+	a.call(w, r, core.CallModeRead, true)
+}
+
+func (a *api) call(w http.ResponseWriter, r *http.Request, mode core.CallMode, debug bool) {
+	a.logger.Log("start")
 
 	vars := mux.Vars(r)
 	session := vars["session"]
@@ -194,7 +210,7 @@ func (a *api) call(w http.ResponseWriter, r *http.Request, mode core.CallMode) {
 		}
 	}
 
-	binres, err := a.core.Call(binbody, session, mode, cnn)
+	binres, err := a.core.Call(binbody, session, mode, debug, r.Context())
 	if err != nil {
 		a.respondError(w, err)
 		return
@@ -251,7 +267,7 @@ func (a *api) respondError(w http.ResponseWriter, err error) {
 	type jsonError struct {
 		Error string `json:"error"`
 	}
-	a.log("Returning error: " + err.Error())
+	a.logger.Log("Returning error: " + err.Error())
 	w.WriteHeader(http.StatusBadRequest)
 
 	// if even the encoder of the error errors, just log the error
@@ -259,6 +275,6 @@ func (a *api) respondError(w http.ResponseWriter, err error) {
 		Error: err.Error(),
 	})
 	if err != nil {
-		a.logger.Println("Error while writing error: " + err.Error())
+		a.logger.Log("Error while writing error: " + err.Error())
 	}
 }
