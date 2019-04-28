@@ -3,8 +3,8 @@ package status
 import (
 	"net/http"
 
-	"github.com/OS-Q/WEBUSB/core"
-	"github.com/OS-Q/WEBUSB/memorywriter"
+	"github.com/trezor/trezord-go/core"
+	"github.com/trezor/trezord-go/memorywriter"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"

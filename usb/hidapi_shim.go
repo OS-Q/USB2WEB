@@ -5,8 +5,8 @@
 package usb
 
 import (
-	"github.com/OS-Q/WEBUSB/core"
-	"github.com/OS-Q/WEBUSB/memorywriter"
+	"github.com/trezor/trezord-go/core"
+	"github.com/trezor/trezord-go/memorywriter"
 )
 
 const HIDUse = false

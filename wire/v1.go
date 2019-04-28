@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/OS-Q/WEBUSB/memorywriter"
+	"github.com/trezor/trezord-go/memorywriter"
 )
 
 const (

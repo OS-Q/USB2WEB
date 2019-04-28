@@ -3,7 +3,7 @@
 package status
 
 import (
-	"github.com/OS-Q/WEBUSB/memorywriter"
+	"github.com/trezor/trezord-go/memorywriter"
 )
 
 // Devcon is a tool for listing devices and drivers on windows

@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/OS-Q/WEBUSB/core"
-	"github.com/OS-Q/WEBUSB/memorywriter"
+	"github.com/trezor/trezord-go/core"
+	"github.com/trezor/trezord-go/memorywriter"
 
 	"github.com/gorilla/mux"
 )

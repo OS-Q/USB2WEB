@@ -14,8 +14,8 @@ import (
 	"unicode/utf16"
 	"unicode/utf8"
 
-	"github.com/OS-Q/WEBUSB/core"
-	"github.com/OS-Q/WEBUSB/memorywriter"
+	"github.com/trezor/trezord-go/core"
+	"github.com/trezor/trezord-go/memorywriter"
 )
 
 // Devcon is a tool for listing devices and drivers on windows
