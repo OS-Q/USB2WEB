@@ -1,14 +1,21 @@
 ﻿# [WEBUSB](https://github.com/OS-Q/WEBUSB)
-[![sites](OS-Q/OS-Q.png)](http://www.OS-Q.com)
-#### qitas@qitas.cn
-#### 归属系统交互：[UI-Q](https://github.com/OS-Q/UI-Q)
-#### 关于系统架构：[OS-Q](https://github.com/OS-Q/OS-Q)
+[![sites](http://182.61.61.133/link/resources/OSQ.png)](http://www.OS-Q.com)
 
-### [平台描述](https://github.com/OS-Q/WEBUSB/wiki) 
+#### 关于系统架构：[OS-Q](https://github.com/OS-Q)
+#### 归属系统交互：[UI-Q](https://github.com/OS-Q/UI-Q)
+
+### [WEBUSB描述](https://github.com/OS-Q/WEBUSB/wiki) 
 
 WEBUSB工程用于打通WEB端和设备端的直接通信，实现无网络设备的通信连接，也便于实现更强大的交互控制
 
+
+`go get github.com/OS-Q/WEBUSB`
+
+`go build github.com/OS-Q/WEBUSB`
+
 `go build .`
+
+`./WEBUSB -h `
 
 requires go >= 1.6
 
@@ -31,6 +38,6 @@ https://github.com/Qitas/emu
 
 `make emu`
 
-###  [OS-Q : Operation System for edge devices](http://www.OS-Q.com)
+### [OS-Q = Open Solutions | Open Source |  Operating System ](http://www.OS-Q.com/N01)
 ####  2019-5-10
 
