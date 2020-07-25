@@ -16,7 +16,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-const version = "2.0.26"
+const version = "2.0.30"
 
 type udpTouples []usb.PortTouple
 
@@ -112,7 +112,7 @@ func main() {
 	flag.Parse()
 
 	if versionFlag {
-		fmt.Printf("trezord version %s", version)
+		fmt.Printf("webusb version %s", version)
 		return
 	}
 
@@ -138,7 +138,7 @@ func main() {
 
 	longMemoryWriter := memorywriter.New(90000, 200, true, verboseWriter)
 
-	stderrLogger.Printf("trezord v%s is starting.", version)
+	stderrLogger.Printf("webusb v%s is running.", version)
 
 	bus := initUsb(withusb, longMemoryWriter, stderrLogger)
 

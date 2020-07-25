@@ -1,14 +1,14 @@
 FROM golang:1.11.2
 
-RUN mkdir /trezord-go
-WORKDIR /trezord-go
-COPY ./scripts/run_in_docker.sh /trezord-go
+RUN mkdir /webusb
+WORKDIR /webusb
+COPY ./scripts/run_in_docker.sh /webusb
 
 RUN apt-get update
 RUN apt-get install -y redir
 
-RUN go get github.com/trezor/trezord-go
-RUN go build github.com/trezor/trezord-go
+RUN go get github.com/Qful/webusb
+RUN go build github.com/Qful/webusb
 
-ENTRYPOINT '/trezord-go/run_in_docker.sh'
+ENTRYPOINT '/webusb/run_in_docker.sh'
 EXPOSE 11325
