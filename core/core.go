@@ -100,9 +100,8 @@ func (entries EnumerateEntries) Swap(i, j int) {
 type Core struct {
 	bus USBBus
 
-	normalSessions map[string]*session
-	debugSessions  map[string]*session
-	sessionsMutex  sync.Mutex // for atomic access to sessions
+	normalSessions sync.Map
+	debugSessions  sync.Map
 
 	allowStealing bool
 	reset         bool
@@ -116,7 +115,7 @@ type Core struct {
 	// Those variables help with that
 	callsInProgress int
 	callMutex       sync.Mutex
-	lastInfosMutex  sync.Mutex
+	lastInfosMutex  sync.RWMutex
 	lastInfos       []USBInfo // when call is in progress, use saved info for enumerating
 	// note - both lastInfos and Enumerate result have "paths"
 	// as *fake paths* 2.0.26 onwards; just using device IDs,
@@ -151,13 +150,11 @@ const (
 
 func New(bus USBBus, log *memorywriter.MemoryWriter, allowStealing, reset bool) *Core {
 	c := &Core{
-		bus:            bus,
-		normalSessions: make(map[string]*session),
-		debugSessions:  make(map[string]*session),
-		log:            log,
-		allowStealing:  allowStealing,
-		reset:          reset,
-		usbPaths:       make(map[int]string),
+		bus:           bus,
+		log:           log,
+		allowStealing: allowStealing,
+		reset:         reset,
+		usbPaths:      make(map[int]string),
 	}
 	go c.backgroundListen()
 	return c
@@ -179,9 +176,9 @@ func (c *Core) backgroundListen() {
 	for {
 		time.Sleep(iterDelay * time.Millisecond)
 
-		c.lastInfosMutex.Lock()
+		c.lastInfosMutex.RLock()
 		linfos := len(c.lastInfos)
-		c.lastInfosMutex.Unlock()
+		c.lastInfosMutex.RUnlock()
 		if linfos > 0 {
 			c.log.Log("background enum runs")
 			_, err := c.Enumerate()
@@ -193,7 +190,7 @@ func (c *Core) backgroundListen() {
 	}
 }
 
-func (c *Core) saveUsbPaths(devs []USBInfo) (res []USBInfo) {
+func (c *Core) saveUsbPaths(devs []USBInfo) []USBInfo {
 	for _, dev := range devs {
 		add := true
 		for _, usbPath := range c.usbPaths {
@@ -221,6 +218,7 @@ func (c *Core) saveUsbPaths(devs []USBInfo) (res []USBInfo) {
 			reverse[usbPath] = strconv.Itoa(id)
 		}
 	}
+	res := make([]USBInfo, 0, len(devs))
 	for _, dev := range devs {
 		res = append(res, USBInfo{
 			Path:      reverse[dev.Path],
@@ -230,16 +228,10 @@ func (c *Core) saveUsbPaths(devs []USBInfo) (res []USBInfo) {
 			Debug:     dev.Debug,
 		})
 	}
-	return
+	return res
 }
 
 func (c *Core) Enumerate() ([]EnumerateEntry, error) {
-	// Lock for atomic access to s.sessions.
-	c.log.Log("locking sessionsMutex")
-	c.sessionsMutex.Lock()
-	defer c.sessionsMutex.Unlock()
-
-	c.log.Log("locking callMutex")
 	// Lock for atomic access to s.callInProgress.  It needs to be over
 	// whole function, so that call does not actually start while
 	// enumerating.
@@ -271,7 +263,9 @@ func (c *Core) Enumerate() ([]EnumerateEntry, error) {
 }
 
 func (c *Core) findSession(e *EnumerateEntry, path string, debug bool) {
-	for _, ss := range c.sessions(debug) {
+	s := (c.sessions(debug))
+	s.Range(func(_, v interface{}) bool {
+		ss := v.(*session)
 		if ss.path == path {
 			// Copying to prevent overwriting on Acquire and
 			// wrong comparison in Listen.
@@ -281,8 +275,10 @@ func (c *Core) findSession(e *EnumerateEntry, path string, debug bool) {
 			} else {
 				e.Session = &ssidCopy
 			}
+			return false
 		}
-	}
+		return true
+	})
 }
 
 func (c *Core) createEnumerateEntry(info USBInfo) EnumerateEntry {
@@ -312,21 +308,23 @@ func (entries EnumerateEntries) Sort() {
 	sort.Sort(entries)
 }
 
-func (c *Core) sessions(debug bool) map[string]*session {
-	sessions := c.normalSessions
+func (c *Core) sessions(debug bool) *sync.Map {
 	if debug {
-		sessions = c.debugSessions
+		return &c.debugSessions
 	}
-	return sessions
+	return &c.normalSessions
 }
 
 func (c *Core) releaseDisconnected(infos []USBInfo, debug bool) {
-
-	for ssid, ss := range c.sessions(debug) {
+	s := c.sessions(debug)
+	s.Range(func(k, v interface{}) bool {
+		ssid := k.(string)
+		ss := v.(*session)
 		connected := false
 		for _, info := range infos {
 			if ss.path == info.Path {
 				connected = true
+				break
 			}
 		}
 		if !connected {
@@ -338,7 +336,8 @@ func (c *Core) releaseDisconnected(infos []USBInfo, debug bool) {
 				c.log.Log(fmt.Sprintf("Error on releasing disconnected device: %s", err))
 			}
 		}
-	}
+		return true
+	})
 }
 
 func (c *Core) Release(session string, debug bool) error {
@@ -346,21 +345,19 @@ func (c *Core) Release(session string, debug bool) error {
 }
 
 func (c *Core) release(
-	session string,
+	ssid string,
 	disconnected bool,
 	debug bool,
 ) error {
-	c.log.Log(fmt.Sprintf("session %s", session))
-	c.sessionsMutex.Lock()
-	acquired := (c.sessions(debug))[session]
-	if acquired == nil {
+	c.log.Log(fmt.Sprintf("session %s", ssid))
+	s := c.sessions(debug)
+	v, ok := s.Load(ssid)
+	if !ok {
 		c.log.Log("session not found")
-		c.sessionsMutex.Unlock()
 		return ErrSessionNotFound
 	}
-	delete(c.sessions(debug), session)
-	c.sessionsMutex.Unlock()
-
+	s.Delete(ssid)
+	acquired := v.(*session)
 	c.log.Log("bus close")
 	err := acquired.dev.Close(disconnected)
 	return err
@@ -400,14 +397,17 @@ func (c *Core) Listen(entries []EnumerateEntry, ctx context.Context) ([]Enumerat
 }
 
 func (c *Core) findPrevSession(path string, debug bool) string {
-	// note - sessionsMutex must be locked before entering this
-	for _, ss := range c.sessions(debug) {
+	s := c.sessions(debug)
+	res := ""
+	s.Range(func(_, v interface{}) bool {
+		ss := v.(*session)
 		if ss.path == path {
-			return ss.id
+			res = ss.id
+			return false
 		}
-	}
-
-	return ""
+		return true
+	})
+	return res
 }
 
 func (c *Core) Acquire(
@@ -417,10 +417,6 @@ func (c *Core) Acquire(
 	// note - path is *fake path*, basically device ID,
 	// because that is what enumerate returns;
 	// we convert it to actual path for USB layer
-
-	c.log.Log("locking sessionsMutex")
-	c.sessionsMutex.Lock()
-	defer c.sessionsMutex.Unlock()
 
 	c.log.Log(fmt.Sprintf("input path %s prev %s", path, prev))
 
@@ -476,7 +472,8 @@ func (c *Core) Acquire(
 
 	c.log.Log(fmt.Sprintf("new session is %s", id))
 
-	(c.sessions(debug))[id] = sess
+	s := c.sessions(debug)
+	s.Store(id, sess)
 
 	return id, nil
 }
@@ -523,40 +520,29 @@ const (
 
 func (c *Core) Call(
 	body []byte,
-	session string,
+	ssid string,
 	mode CallMode,
 	debug bool,
 	ctx context.Context,
 ) ([]byte, error) {
-	c.log.Log("callMutex lock")
+
 	c.callMutex.Lock()
-
-	c.log.Log("callMutex set callInProgress true, unlock")
 	c.callsInProgress++
-
 	c.callMutex.Unlock()
-	c.log.Log("callMutex unlock done")
 
 	defer func() {
-		c.log.Log("callMutex closing lock")
 		c.callMutex.Lock()
-
-		c.log.Log("callMutex set callInProgress false, unlock")
 		c.callsInProgress--
-
 		c.callMutex.Unlock()
-		c.log.Log("callMutex closing unlock")
 	}()
 
-	c.log.Log("sessionsMutex lock")
-	c.sessionsMutex.Lock()
-	acquired := (c.sessions(debug))[session]
-	c.sessionsMutex.Unlock()
-	c.log.Log("sessionsMutex unlock done")
-
-	if acquired == nil {
+	s := c.sessions(debug)
+	v, ok := s.Load(ssid)
+	if !ok {
 		return nil, ErrSessionNotFound
 	}
+
+	acquired := v.(*session)
 
 	if mode != CallModeWrite {
 		// This check is implemented only for /call and /read:
@@ -589,7 +575,7 @@ func (c *Core) Call(
 			return
 		case <-ctx.Done():
 			c.log.Log(fmt.Sprintf("detected request close %s, auto-release", ctx.Err().Error()))
-			errRelease := c.release(session, false, debug)
+			errRelease := c.release(ssid, false, debug)
 			if errRelease != nil {
 				// just log, since request is already closed
 				c.log.Log(fmt.Sprintf("Error while releasing: %s", errRelease.Error()))

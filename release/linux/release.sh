@@ -4,7 +4,7 @@ set -e
 
 cd $(dirname $0)
 
-GPGSIGNKEY=86E6792FC27BFD478860C11091F3B339B9A02A3D
+GPGSIGNKEY=54067D8BBF00554181B5AB8F26A3A56662F0E7E2
 TARGET=$1
 VERSION=$(cat /release/build/VERSION)
 
@@ -18,7 +18,7 @@ install -D -m 0644 /release/trezord.service ./usr/lib/systemd/system/trezord.ser
 GPG_PRIVKEY=/release/privkey.asc
 if [ -r $GPG_PRIVKEY ]; then
     export GPG_TTY=$(tty)
-    export LC_ALL=en_US.UTF-8
+    export LC_ALL=C.UTF-8
     gpg --import /release/privkey.asc
     GPG_SIGN=gpg
 fi
@@ -39,14 +39,11 @@ for TYPE in "deb" "rpm"; do
         linux-amd64-rpm)
             ARCH=x86_64
             ;;
-        linux-arm-7-deb)
-            ARCH=armhf
-            ;;
-        linux-arm-7-rpm)
-            ARCH=armv7hl
-            ;;
-        linux-arm64-*)
+        linux-arm64-deb)
             ARCH=arm64
+            ;;
+        linux-arm64-rpm)
+            ARCH=aarch64
             ;;
     esac
     fpm \

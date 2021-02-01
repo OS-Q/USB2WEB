@@ -21,13 +21,15 @@ import (
 type api struct {
 	core    *core.Core
 	version string
+	githash string
 	logger  *memorywriter.MemoryWriter
 }
 
-func ServeAPI(r *mux.Router, c *core.Core, v string, l *memorywriter.MemoryWriter) error {
+func ServeAPI(r *mux.Router, c *core.Core, v, h string, l *memorywriter.MemoryWriter) {
 	api := &api{
 		core:    c,
 		version: v,
+		githash: h,
 		logger:  l,
 	}
 	r.HandleFunc("/", api.Info)
@@ -46,22 +48,22 @@ func ServeAPI(r *mux.Router, c *core.Core, v string, l *memorywriter.MemoryWrite
 	r.HandleFunc("/debug/call/{session}", api.CallDebug)
 	r.HandleFunc("/debug/post/{session}", api.PostDebug)
 	r.HandleFunc("/debug/read/{session}", api.ReadDebug)
-	corsv, err := corsValidator()
-	if err != nil {
-		return err
+	if !core.IsDebugBinary() {
+		corsv := corsValidator()
+		r.Use(CORS(corsv))
 	}
-	r.Use(CORS(corsv))
-	return nil
 }
 
 func (a *api) Info(w http.ResponseWriter, r *http.Request) {
-	a.logger.Log("version " + a.version)
+	a.logger.Log("version " + a.version + " (rev " + a.githash + ")")
 
 	type info struct {
 		Version string `json:"version"`
+		Githash string `json:"githash"`
 	}
 	err := json.NewEncoder(w).Encode(info{
 		Version: a.version,
+		Githash: a.githash,
 	})
 	a.checkJSONError(w, err)
 }
@@ -226,47 +228,40 @@ func (a *api) call(w http.ResponseWriter, r *http.Request, mode core.CallMode, d
 	}
 }
 
-func corsValidator() (OriginValidator, error) {
-	trezorRegex, err := regexp.Compile(`^https://([[:alnum:]\-_]+\.)*trezor\.io$`)
-	if err != nil {
-		return nil, err
-	}
+func corsValidator() OriginValidator {
+	// *.trezor.io
+	trezorRegex := regexp.MustCompile(`^https://([[:alnum:]\-_]+\.)*trezor\.io$`)
 
-	// `localhost:8xxx` and `5xxx` are added for easing local development.
-	localRegex, err := regexp.Compile(`^https?://localhost:[58][[:digit:]]{3}$`)
-	if err != nil {
-		return nil, err
-	}
+	// *.trezoriovpjcahpzkrewelclulmszwbqpzmzgub37gbcjlvluxtruqad.onion
+	trezorOnionRegex := regexp.MustCompile(`^https?://([[:alnum:]\-_]+\.)*trezoriovpjcahpzkrewelclulmszwbqpzmzgub37gbcjlvluxtruqad\.onion$`)
 
-	// SatoshiLabs dev servers
-	devRegex, err := regexp.Compile(`^https://([[:alnum:]\-_]+\.)*sldev\.cz$`)
-	if err != nil {
-		return nil, err
-	}
+	// `localhost:8xxx` and `5xxx` are added for easing local development
+	localRegex := regexp.MustCompile(`^https?://localhost:[58][[:digit:]]{3}$`)
+
+	// SatoshiLabs development servers
+	develRegex := regexp.MustCompile(`^https://([[:alnum:]\-_]+\.)*sldev\.cz$`)
 
 	v := func(origin string) bool {
+		if trezorRegex.MatchString(origin) {
+			return true
+		}
+
+		if trezorOnionRegex.MatchString(origin) {
+			return true
+		}
+
 		if localRegex.MatchString(origin) {
 			return true
 		}
 
-		if devRegex.MatchString(origin) {
-			return true
-		}
-
-		// `null` is for electron apps or chrome extensions.
-		// commented out for now
-		// if origin == "null" {
-		//	return true
-		// }
-
-		if trezorRegex.MatchString(origin) {
+		if develRegex.MatchString(origin) {
 			return true
 		}
 
 		return false
 	}
 
-	return v, nil
+	return v
 }
 
 func (a *api) checkJSONError(w http.ResponseWriter, err error) {
