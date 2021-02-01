@@ -1,15 +1,13 @@
-﻿# [webusb](https://github.com/Qful/webusb)
+﻿# [S12](https://github.com/Qful/S12)
 
-[![sites](http://182.61.61.133/link/resources/Qful.png)](http://www.Qful.net)
-
-### [WEBUSB描述](https://github.com/Qful/webusb/wiki) 
+### [简介](https://github.com/Qful/S12/wiki) 
 
 [webusb](https://github.com/Qful/webusb) 工程用于打通WEB端和设备端的直接通信，实现无网络设备的通信连接，也便于实现更强大的交互控制
 
 
-`go get github.com/Qful/webusb`
+`go get github.com/OS-Q/S12`
 
-`go build github.com/Qful/webusb`
+`go build github.com/OS-Q/S12`
 
 `./webusb -e 21324`
 
@@ -23,4 +21,3 @@ support an emulator with debug link
 
 
 
-### www.Qful.net
