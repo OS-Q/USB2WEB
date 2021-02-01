@@ -1,8 +1,8 @@
-﻿# [S12](https://github.com/Qful/S12)
+﻿# [S12](https://github.com/OS-Q/S12)
 
-### [简介](https://github.com/Qful/S12/wiki) 
+### [简介](https://github.com/OS-Q/S12/wiki) 
 
-[webusb](https://github.com/Qful/webusb) 工程用于打通WEB端和设备端的直接通信，实现无网络设备的通信连接，也便于实现更强大的交互控制
+[S12](https://github.com/OS-Q/S12)工程用于打通WEB端和设备端的直接通信，实现无网络设备的通信连接，也便于实现更强大的交互控制
 
 
 `go get github.com/OS-Q/S12`
